@@ -181,6 +181,12 @@ func generateUUID() string {
 		n.DivMod(n, base, mod)
 		encoded = append(encoded, alphabet[mod.Int64()])
 	}
+	for _, b := range u {
+		if b != 0 {
+			break
+		}
+		encoded = append(encoded, alphabet[0])
+	}
 	for i, j := 0, len(encoded)-1; i < j; i, j = i+1, j-1 {
 		encoded[i], encoded[j] = encoded[j], encoded[i]
 	}
@@ -3075,7 +3081,7 @@ func (t *ThingsMCP) handleCreateTask(_ context.Context, req mcp.CallToolRequest)
 			itemUUID := generateUUID()
 			clPayload := ChecklistItemCreatePayload{
 				Cd: now, Md: nil, Tt: strings.TrimSpace(item), Ss: 0, Sp: nil,
-				Ix: i, Ts: []string{taskUUID}, Lt: false, Xx: defaultExtension(),
+				Ix: i + 1, Ts: []string{taskUUID}, Lt: false, Xx: defaultExtension(),
 			}
 			envelopes = append(envelopes, writeEnvelope{id: itemUUID, action: 0, kind: "ChecklistItem3", payload: clPayload})
 		}
@@ -3495,7 +3501,10 @@ func (t *ThingsMCP) handleAddChecklistItem(_ context.Context, req mcp.CallToolRe
 		return errResult(err.Error()), nil
 	}
 
-	ix := req.GetInt("index", 0)
+	ix := req.GetInt("index", 1)
+	if ix < 1 {
+		ix = 1
+	}
 	itemUUID := generateUUID()
 	now := nowTs()
 	payload := ChecklistItemCreatePayload{
@@ -3520,7 +3529,7 @@ func (t *ThingsMCP) handleEditChecklistItem(_ context.Context, req mcp.CallToolR
 	if v := req.GetString("title", ""); v != "" {
 		payload["tt"] = v
 	}
-	if ix := req.GetInt("index", -1); ix >= 0 {
+	if ix := req.GetInt("index", -1); ix >= 1 {
 		payload["ix"] = ix
 	}
 	if completed, ok := req.GetArguments()["completed"]; ok {
