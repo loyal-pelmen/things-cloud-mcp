@@ -12,7 +12,6 @@ import (
 	"hash/crc32"
 	"hash/fnv"
 	"log"
-	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -174,20 +173,7 @@ func defaultExtension() WireExtension {
 }
 
 func generateUUID() string {
-	u := uuid.New()
-	const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-	n := new(big.Int).SetBytes(u[:])
-	base := big.NewInt(58)
-	mod := new(big.Int)
-	var encoded []byte
-	for n.Sign() > 0 {
-		n.DivMod(n, base, mod)
-		encoded = append(encoded, alphabet[mod.Int64()])
-	}
-	for i, j := 0, len(encoded)-1; i < j; i, j = i+1, j-1 {
-		encoded[i], encoded[j] = encoded[j], encoded[i]
-	}
-	return string(encoded)
+	return thingscloud.EncodeUUID(uuid.New())
 }
 
 func nowTs() float64 {
@@ -3521,7 +3507,7 @@ func (t *ThingsMCP) handleCreateTask(_ context.Context, req mcp.CallToolRequest)
 			itemUUID := generateUUID()
 			clPayload := ChecklistItemCreatePayload{
 				Cd: now, Md: nil, Tt: strings.TrimSpace(item), Ss: 0, Sp: nil,
-				Ix: i, Ts: []string{taskUUID}, Lt: false, Xx: defaultExtension(),
+				Ix: i + 1, Ts: []string{taskUUID}, Lt: false, Xx: defaultExtension(),
 			}
 			envelopes = append(envelopes, writeEnvelope{id: itemUUID, action: 0, kind: "ChecklistItem3", payload: clPayload})
 		}
@@ -3996,7 +3982,10 @@ func (t *ThingsMCP) handleAddChecklistItem(_ context.Context, req mcp.CallToolRe
 		return errResult(err.Error()), nil
 	}
 
-	ix := req.GetInt("index", 0)
+	ix := req.GetInt("index", 1)
+	if ix < 1 {
+		ix = 1
+	}
 	itemUUID := generateUUID()
 	now := nowTs()
 	payload := ChecklistItemCreatePayload{
@@ -4026,7 +4015,7 @@ func (t *ThingsMCP) handleEditChecklistItem(_ context.Context, req mcp.CallToolR
 		payload["tt"] = v
 		changed = true
 	}
-	if ix := req.GetInt("index", -1); ix >= 0 {
+	if ix := req.GetInt("index", -1); ix >= 1 {
 		payload["ix"] = ix
 		changed = true
 	}
