@@ -3461,7 +3461,14 @@ func (t *ThingsMCP) handleEditTask(_ context.Context, req mcp.CallToolRequest) (
 	if v := req.GetString("status", ""); v != "" {
 		switch v {
 		case "completed":
-			u.Status(3).StopDate(nowTs())
+			stop := nowTs()
+			if t := parseDate(req.GetString("completion_date", "")); t != nil {
+				if len(req.GetString("completion_date", "")) == 10 {
+					*t = t.Add(17 * time.Hour)
+				}
+				stop = float64(t.Unix())
+			}
+			u.Status(3).StopDate(stop)
 		case "canceled":
 			u.Status(2).StopDate(nowTs())
 		case "pending":
@@ -3865,6 +3872,7 @@ func defineTools(um *UserManager) []server.ServerTool {
 				mcp.WithString("reminder_time", mcp.Description("Reminder time in HH:MM 24-hour format (e.g. 09:00, 14:30). Must be used together with reminder_date.")),
 				mcp.WithString("recurrence", mcp.Description("Recurrence rule: daily, weekly, weekly:mon,wed, monthly, monthly:15, monthly:last, yearly, every N days, every N weeks. Use \"none\" to clear.")),
 				mcp.WithString("status", mcp.Description("Set item status: pending, completed, canceled, trashed (move to trash), restored (restore from trash)"), mcp.Enum("pending", "completed", "canceled", "trashed", "restored")),
+				mcp.WithString("completion_date", mcp.Description("With status=completed: when it was completed (YYYY-MM-DD or RFC3339). Default: now")),
 			),
 			Handler: wrap(func(t *ThingsMCP, ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 				return t.handleEditTask(ctx, req)
